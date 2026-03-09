@@ -10,6 +10,7 @@
 
 // std
 #include <algorithm>
+#include <cstdio>
 #include <random>
 #include <vector>
 
@@ -124,5 +125,88 @@ static void BM_Sort_V3(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_Sort_V3);
+
+// ---- serialization benchmarks ----
+// Text serialization to/from "YYYYMMDD" (8 chars + null) — the dominant
+// wire format in FIX, CSV, and settlement systems.
+//
+// Serialize: date → char[9]
+// Deserialize: char[9] → date
+//
+// V3 serialize: int IS yyyymmdd, so one %08d format.
+// V1/V2 serialize: three separate fields, so "%04d%02d%02d".
+// Deserialize: all types read one integer from the string; V1/V2 then pay
+// the div/mod decomposition to split it back into fields — the same
+// arithmetic penalty seen in BM_GetNextWeekday_V3.
+
+static void BM_Serialize_V1(benchmark::State &state) {
+  const date_v1::Date d{2026, 3, 9};
+  char buf[9];
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(d);
+    std::snprintf(buf, sizeof(buf), "%04d%02d%02d", d.year, d.month, d.day);
+    benchmark::DoNotOptimize(buf);
+  }
+}
+BENCHMARK(BM_Serialize_V1);
+
+static void BM_Serialize_V2(benchmark::State &state) {
+  const date_v2::Date d{2026, 3, 9};
+  char buf[9];
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(d);
+    std::snprintf(buf, sizeof(buf), "%04d%02d%02d", d.year, d.month, d.day);
+    benchmark::DoNotOptimize(buf);
+  }
+}
+BENCHMARK(BM_Serialize_V2);
+
+static void BM_Serialize_V3(benchmark::State &state) {
+  const date_v3::Date d = 20260309;
+  char buf[9];
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(d);
+    std::snprintf(buf, sizeof(buf), "%08d", d);
+    benchmark::DoNotOptimize(buf);
+  }
+}
+BENCHMARK(BM_Serialize_V3);
+
+static void BM_Deserialize_V1(benchmark::State &state) {
+  const char *buf = "20260309";
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(buf);
+    int n;
+    std::sscanf(buf, "%8d", &n);
+    date_v1::Date d{n / 10000, (n / 100) % 100, n % 100};
+    benchmark::DoNotOptimize(d);
+  }
+}
+BENCHMARK(BM_Deserialize_V1);
+
+static void BM_Deserialize_V2(benchmark::State &state) {
+  const char *buf = "20260309";
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(buf);
+    int n;
+    std::sscanf(buf, "%8d", &n);
+    date_v2::Date d{static_cast<short>(n / 10000),
+                    static_cast<char>((n / 100) % 100),
+                    static_cast<char>(n % 100)};
+    benchmark::DoNotOptimize(d);
+  }
+}
+BENCHMARK(BM_Deserialize_V2);
+
+static void BM_Deserialize_V3(benchmark::State &state) {
+  const char *buf = "20260309";
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(buf);
+    date_v3::Date d;
+    std::sscanf(buf, "%8d", &d);
+    benchmark::DoNotOptimize(d);
+  }
+}
+BENCHMARK(BM_Deserialize_V3);
 
 BENCHMARK_MAIN();
