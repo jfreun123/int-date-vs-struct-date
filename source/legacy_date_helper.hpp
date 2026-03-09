@@ -49,15 +49,20 @@ constexpr DayOfWeek dayOfWeek(int y, int m, int d) {
     return static_cast<DayOfWeek>((mod7Token + 3) % 7);
 }
 
-constexpr int daysInMonth2026(int month) {
+// Gregorian leap year rules: every 4y, skip 100y, restore 400y.
+constexpr bool isLeapYear(int year) {
+    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+constexpr int daysInMonth(int year, int month) {
     constexpr std::array<int, 12> days = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (month == 2 && isLeapYear(year)) { return 29; }
     return days[month - 1];
 }
 
-// Returns the next calendar day after `date` (2026 only)
 template <typename Date>
-constexpr Date nextDay2026(Date date) {
-    if (date.day < daysInMonth2026(date.month)) {
+constexpr Date nextDay(Date date) {
+    if (date.day < daysInMonth(date.year, date.month)) {
         return {date.year, date.month, static_cast<decltype(date.day)>(date.day + 1)};
     }
     if (date.month < 12) {
@@ -68,13 +73,12 @@ constexpr Date nextDay2026(Date date) {
             static_cast<decltype(date.month)>(1), static_cast<decltype(date.day)>(1)};
 }
 
-// Returns the next weekday (Mon–Fri) after `date` (optimized for 2026)
 template <typename Date>
 constexpr Date getNextWeekday(Date date) {
-    Date next = nextDay2026(date);
+    Date next = nextDay(date);
     DayOfWeek dow = dayOfWeek(next.year, next.month, next.day);
-    if (dow == DayOfWeek::Sunday)   { return nextDay2026(next); }
-    if (dow == DayOfWeek::Saturday) { return nextDay2026(nextDay2026(next)); }
+    if (dow == DayOfWeek::Sunday)   { return nextDay(next); }
+    if (dow == DayOfWeek::Saturday) { return nextDay(nextDay(next)); }
     return next;
 }
 
