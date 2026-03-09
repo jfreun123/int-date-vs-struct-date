@@ -1,22 +1,14 @@
 // starter
 #include "add.hpp"
 
-// std
-#include <cstdint>
-#include <exception>
-#include <iostream>
+// benchmark
+#include <benchmark/benchmark.h>
 
-int main() {
-  try {
-    constexpr int kIterations = 1'000'000;
-    std::uint64_t result = 0;
-    for (int i = 0; i < kIterations; ++i) {
-      result += static_cast<std::uint64_t>(starter::add(i, i + 1));
-    }
-    std::cout << "iterations=" << kIterations << " result=" << result << "\n";
-  } catch (const std::exception &e) {
-    std::cerr << "fatal: " << e.what() << "\n";
-    return 1;
+static void BM_Add(benchmark::State& state) {
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(starter::add(1, 2));
   }
-  return 0;
 }
+BENCHMARK(BM_Add);
+
+BENCHMARK_MAIN();

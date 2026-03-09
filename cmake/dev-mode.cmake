@@ -8,6 +8,7 @@ endif()
 
 # ---- Benchmark ----
 
+include(cmake/gbenchmark.cmake)
 add_subdirectory(benchmark)
 
 # ---- Linting (clang-format) ----
