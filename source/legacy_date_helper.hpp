@@ -1,0 +1,81 @@
+#pragma once
+
+#include <array>
+
+namespace legacy_date_helper {
+
+enum class DayOfWeek {
+    Sunday = 0,
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday,
+};
+
+// Returns the day of week for a given Gregorian date.
+//
+// Treats the year as starting March 1 so leap-day (Feb 29) always falls at
+// the very end — the leap-year correction then applies to a complete year
+// with no special-casing needed.
+//
+// daysFromMarch1[] is a prefix sum: cumulative days from March 1 to the
+// first day of each month (Mar=0, Apr=31, May=61, …, Jan=306, Feb=337).
+// Only the value mod 7 matters for day-of-week arithmetic.
+//
+// The true day count from the epoch is:
+//   actualDays = 365*y + leapAdjustment + daysFromMarch1[marchMonth] + (d-1)
+// Since we only care about (actualDays % 7), and 365 % 7 == 1, we reduce
+//   365*y  →  y   (mod 7)
+// The result is no longer a real day count — it is a mod-7 token.
+// Leap-day count uses Gregorian rules: every 4y, skip 100y, restore 400y.
+// The +3 offset calibrates to the epoch: March 1, year 0 was a Wednesday (index 3).
+constexpr DayOfWeek dayOfWeek(int y, int m, int d) {
+    // Prefix-sum of days from March 1: Mar Apr May Jun Jul Aug Sep Oct Nov Dec Jan Feb
+    constexpr std::array<int, 12> daysFromMarch1 = {0, 31, 61, 92, 122, 153, 184, 214, 245, 275, 306, 337};
+
+    if (m < 3) { y--; }
+
+    const int marchMonth = (m + 9) % 12;  // Mar=0, Apr=1, ..., Dec=9, Jan=10, Feb=11
+    const int leapYearAdjustment = y / 4 - y / 100 + y / 400;
+
+    // Shortcut: 365*y ≡ y (mod 7) because 365 = 52*7 + 1, so one full year
+    // always shifts the day of week forward by exactly 1. We substitute y for
+    // 365*y so the value below is NOT a real day count — only its remainder
+    // mod 7 is meaningful.
+    const int mod7Token = y + leapYearAdjustment + daysFromMarch1[marchMonth] + (d - 1);
+
+    return static_cast<DayOfWeek>((mod7Token + 3) % 7);
+}
+
+constexpr int daysInMonth2026(int month) {
+    constexpr std::array<int, 12> days = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    return days[month - 1];
+}
+
+// Returns the next calendar day after `date` (2026 only)
+template <typename Date>
+constexpr Date nextDay2026(Date date) {
+    if (date.day < daysInMonth2026(date.month)) {
+        return {date.year, date.month, static_cast<decltype(date.day)>(date.day + 1)};
+    }
+    if (date.month < 12) {
+        return {date.year, static_cast<decltype(date.month)>(date.month + 1),
+                static_cast<decltype(date.day)>(1)};
+    }
+    return {static_cast<decltype(date.year)>(date.year + 1),
+            static_cast<decltype(date.month)>(1), static_cast<decltype(date.day)>(1)};
+}
+
+// Returns the next weekday (Mon–Fri) after `date` (optimized for 2026)
+template <typename Date>
+constexpr Date getNextWeekday(Date date) {
+    Date next = nextDay2026(date);
+    DayOfWeek dow = dayOfWeek(next.year, next.month, next.day);
+    if (dow == DayOfWeek::Sunday)   { return nextDay2026(next); }
+    if (dow == DayOfWeek::Saturday) { return nextDay2026(nextDay2026(next)); }
+    return next;
+}
+
+} // namespace legacy_date_helper
