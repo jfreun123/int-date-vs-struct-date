@@ -9,6 +9,10 @@
 // gtest
 #include <gtest/gtest.h>
 
+// std
+#include <algorithm>
+#include <vector>
+
 using date_common_functions::DayOfWeek;
 using date_common_functions::dayOfWeek;
 using date_common_functions::daysInMonth;
@@ -232,4 +236,42 @@ TEST(DateHelper, GetNextWeekday_SundaySkipsToMonday) {
 TEST(DateHelper, GetNextWeekday_YearRollover) {
   EXPECT_EQ(date_helper::getNextWeekday(20261231), 20270101); // Thu -> Fri
   EXPECT_EQ(date_helper::dayOfWeek(20270101), DayOfWeek::Friday);
+}
+
+// ---- sort order ----
+
+TEST(SortOrder_V1, ShuffledDates) {
+  std::vector<date_v1::Date> dates = {
+      {2026, 3, 9}, {2026, 1, 1}, {2025, 12, 31}, {2026, 3, 8}, {2026, 1, 31},
+  };
+  std::sort(dates.begin(), dates.end());
+  EXPECT_EQ((dates[0]), (date_v1::Date{2025, 12, 31}));
+  EXPECT_EQ((dates[1]), (date_v1::Date{2026, 1, 1}));
+  EXPECT_EQ((dates[2]), (date_v1::Date{2026, 1, 31}));
+  EXPECT_EQ((dates[3]), (date_v1::Date{2026, 3, 8}));
+  EXPECT_EQ((dates[4]), (date_v1::Date{2026, 3, 9}));
+}
+
+TEST(SortOrder_V2, ShuffledDates) {
+  std::vector<date_v2::Date> dates = {
+      {2026, 3, 9}, {2026, 1, 1}, {2025, 12, 31}, {2026, 3, 8}, {2026, 1, 31},
+  };
+  std::sort(dates.begin(), dates.end());
+  EXPECT_EQ((dates[0]), (date_v2::Date{2025, 12, 31}));
+  EXPECT_EQ((dates[1]), (date_v2::Date{2026, 1, 1}));
+  EXPECT_EQ((dates[2]), (date_v2::Date{2026, 1, 31}));
+  EXPECT_EQ((dates[3]), (date_v2::Date{2026, 3, 8}));
+  EXPECT_EQ((dates[4]), (date_v2::Date{2026, 3, 9}));
+}
+
+TEST(SortOrder_V3, ShuffledDates) {
+  std::vector<date_v3::Date> dates = {
+      20260309, 20260101, 20251231, 20260308, 20260131,
+  };
+  std::sort(dates.begin(), dates.end());
+  EXPECT_EQ(dates[0], 20251231);
+  EXPECT_EQ(dates[1], 20260101);
+  EXPECT_EQ(dates[2], 20260131);
+  EXPECT_EQ(dates[3], 20260308);
+  EXPECT_EQ(dates[4], 20260309);
 }
