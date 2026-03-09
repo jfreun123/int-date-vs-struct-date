@@ -1,7 +1,9 @@
-// legacy_date_helper
+// date headers
+#include "date_helper.hpp"
 #include "legacy_date_helper.hpp"
 #include "date_v1.hpp"
 #include "date_v2.hpp"
+#include "date_v3.hpp"
 
 // benchmark
 #include <benchmark/benchmark.h>
@@ -32,5 +34,16 @@ static void BM_GetNextWeekday_V2(benchmark::State& state) {
     }
 }
 BENCHMARK(BM_GetNextWeekday_V2);
+
+static void BM_GetNextWeekday_V3(benchmark::State& state) {
+    date_v3::Date current = 20260101;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(current);
+        date_v3::Date next = date_helper::getNextWeekday(current);
+        benchmark::DoNotOptimize(next);
+        current = next;
+    }
+}
+BENCHMARK(BM_GetNextWeekday_V3);
 
 BENCHMARK_MAIN();

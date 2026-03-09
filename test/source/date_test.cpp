@@ -1,16 +1,19 @@
-// legacy_date_helper
+// date headers
+#include "date_common_functions.hpp"
+#include "date_helper.hpp"
 #include "legacy_date_helper.hpp"
 #include "date_v1.hpp"
 #include "date_v2.hpp"
+#include "date_v3.hpp"
 
 // gtest
 #include <gtest/gtest.h>
 
-using legacy_date_helper::DayOfWeek;
-using legacy_date_helper::dayOfWeek;
-using legacy_date_helper::daysInMonth;
+using date_common_functions::DayOfWeek;
+using date_common_functions::dayOfWeek;
+using date_common_functions::daysInMonth;
+using date_common_functions::isLeapYear;
 using legacy_date_helper::getNextWeekday;
-using legacy_date_helper::isLeapYear;
 using legacy_date_helper::nextDay;
 
 // ---- isLeapYear ----
@@ -172,4 +175,61 @@ TEST(GetNextWeekday_V2, YearRollover) {
     EXPECT_EQ(next.month, 1);
     EXPECT_EQ(next.day,   1);
     EXPECT_EQ(dayOfWeek(next.year, next.month, next.day), DayOfWeek::Friday);
+}
+
+// ---- date_helper (yyyymmdd int) ----
+
+TEST(DateHelper, Components) {
+    constexpr int date = 20260309;
+    EXPECT_EQ(date_helper::year(date),  2026);
+    EXPECT_EQ(date_helper::month(date), 3);
+    EXPECT_EQ(date_helper::day(date),   9);
+}
+
+TEST(DateHelper, Pack) {
+    EXPECT_EQ(date_helper::pack(2026, 3, 9), 20260309);
+    EXPECT_EQ(date_helper::pack(2027, 1, 1), 20270101);
+}
+
+TEST(DateHelper, DayOfWeek) {
+    EXPECT_EQ(date_helper::dayOfWeek(20260101), DayOfWeek::Thursday);
+    EXPECT_EQ(date_helper::dayOfWeek(20260103), DayOfWeek::Saturday);
+    EXPECT_EQ(date_helper::dayOfWeek(20260104), DayOfWeek::Sunday);
+}
+
+TEST(DateHelper, NextDay_MidMonth) {
+    EXPECT_EQ(date_helper::nextDay(20260309), 20260310);
+}
+
+TEST(DateHelper, NextDay_MonthRollover) {
+    EXPECT_EQ(date_helper::nextDay(20260131), 20260201);
+}
+
+TEST(DateHelper, NextDay_FebruaryEndNonLeap) {
+    EXPECT_EQ(date_helper::nextDay(20260228), 20260301);
+}
+
+TEST(DateHelper, NextDay_FebruaryEndLeap) {
+    EXPECT_EQ(date_helper::nextDay(20240228), 20240229);
+}
+
+TEST(DateHelper, NextDay_YearRollover) {
+    EXPECT_EQ(date_helper::nextDay(20261231), 20270101);
+}
+
+TEST(DateHelper, GetNextWeekday_FridaySkipsToMonday) {
+    EXPECT_EQ(date_helper::getNextWeekday(20260102), 20260105);  // Fri -> Mon
+}
+
+TEST(DateHelper, GetNextWeekday_SaturdaySkipsToMonday) {
+    EXPECT_EQ(date_helper::getNextWeekday(20260103), 20260105);  // Sat -> Mon
+}
+
+TEST(DateHelper, GetNextWeekday_SundaySkipsToMonday) {
+    EXPECT_EQ(date_helper::getNextWeekday(20260104), 20260105);  // Sun -> Mon
+}
+
+TEST(DateHelper, GetNextWeekday_YearRollover) {
+    EXPECT_EQ(date_helper::getNextWeekday(20261231), 20270101);  // Thu -> Fri
+    EXPECT_EQ(date_helper::dayOfWeek(20270101), DayOfWeek::Friday);
 }
