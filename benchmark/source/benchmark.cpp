@@ -140,7 +140,7 @@ BENCHMARK(BM_Sort_V3);
 // arithmetic penalty seen in BM_GetNextWeekday_V3.
 
 static void BM_Serialize_V1(benchmark::State &state) {
-  const date_v1::Date d{2026, 3, 9};
+  date_v1::Date d{2026, 3, 9};
   char buf[9];
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
@@ -151,7 +151,7 @@ static void BM_Serialize_V1(benchmark::State &state) {
 BENCHMARK(BM_Serialize_V1);
 
 static void BM_Serialize_V2(benchmark::State &state) {
-  const date_v2::Date d{2026, 3, 9};
+  date_v2::Date d{2026, 3, 9};
   char buf[9];
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
@@ -162,7 +162,7 @@ static void BM_Serialize_V2(benchmark::State &state) {
 BENCHMARK(BM_Serialize_V2);
 
 static void BM_Serialize_V3(benchmark::State &state) {
-  const date_v3::Date d = 20260309;
+  date_v3::Date d = 20260309;
   char buf[9];
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
