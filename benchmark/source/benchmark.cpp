@@ -10,7 +10,6 @@
 
 // std
 #include <algorithm>
-#include <cstdio>
 #include <random>
 #include <vector>
 
@@ -133,18 +132,30 @@ BENCHMARK(BM_Sort_V3);
 // Serialize: date → char[9]
 // Deserialize: char[9] → date
 //
-// V3 serialize: int IS yyyymmdd, so one %08d format.
-// V1/V2 serialize: three separate fields, so "%04d%02d%02d".
-// Deserialize: all types read one integer from the string; V1/V2 then pay
-// the div/mod decomposition to split it back into fields — the same
-// arithmetic penalty seen in BM_GetNextWeekday_V3.
+// Serialize: V1/V2 win — fields are already split, so digit extraction
+// requires no decomposition (symmetric advantage to getNextWeekday).
+// V3 must first unpack year/month/day from the packed int, paying extra
+// div/mod operations before it can write any digits.
+//
+// Deserialize: V3 wins — parse the 8-char string into one integer and
+// it is immediately a valid V3 date. V1/V2 must then decompose that
+// integer into three fields, paying the same penalty seen in
+// BM_GetNextWeekday_V3.
 
 static void BM_Serialize_V1(benchmark::State &state) {
   date_v1::Date d{2026, 3, 9};
   char buf[9];
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
-    std::snprintf(buf, sizeof(buf), "%04d%02d%02d", d.year, d.month, d.day);
+    buf[0] = '0' + d.year / 1000;
+    buf[1] = '0' + (d.year / 100) % 10;
+    buf[2] = '0' + (d.year / 10) % 10;
+    buf[3] = '0' + d.year % 10;
+    buf[4] = '0' + d.month / 10;
+    buf[5] = '0' + d.month % 10;
+    buf[6] = '0' + d.day / 10;
+    buf[7] = '0' + d.day % 10;
+    buf[8] = '\0';
     benchmark::DoNotOptimize(buf);
   }
 }
@@ -155,7 +166,15 @@ static void BM_Serialize_V2(benchmark::State &state) {
   char buf[9];
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
-    std::snprintf(buf, sizeof(buf), "%04d%02d%02d", d.year, d.month, d.day);
+    buf[0] = '0' + d.year / 1000;
+    buf[1] = '0' + (d.year / 100) % 10;
+    buf[2] = '0' + (d.year / 10) % 10;
+    buf[3] = '0' + d.year % 10;
+    buf[4] = '0' + d.month / 10;
+    buf[5] = '0' + d.month % 10;
+    buf[6] = '0' + d.day / 10;
+    buf[7] = '0' + d.day % 10;
+    buf[8] = '\0';
     benchmark::DoNotOptimize(buf);
   }
 }
@@ -166,7 +185,16 @@ static void BM_Serialize_V3(benchmark::State &state) {
   char buf[9];
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
-    std::snprintf(buf, sizeof(buf), "%08d", d);
+    int tmp = d;
+    buf[7] = '0' + tmp % 10; tmp /= 10;
+    buf[6] = '0' + tmp % 10; tmp /= 10;
+    buf[5] = '0' + tmp % 10; tmp /= 10;
+    buf[4] = '0' + tmp % 10; tmp /= 10;
+    buf[3] = '0' + tmp % 10; tmp /= 10;
+    buf[2] = '0' + tmp % 10; tmp /= 10;
+    buf[1] = '0' + tmp % 10; tmp /= 10;
+    buf[0] = '0' + tmp % 10;
+    buf[8] = '\0';
     benchmark::DoNotOptimize(buf);
   }
 }
@@ -176,8 +204,10 @@ static void BM_Deserialize_V1(benchmark::State &state) {
   const char *buf = "20260309";
   for (auto _ : state) {
     benchmark::DoNotOptimize(buf);
-    int n;
-    std::sscanf(buf, "%8d", &n);
+    int n = (buf[0] - '0') * 10000000 + (buf[1] - '0') * 1000000 +
+            (buf[2] - '0') * 100000 + (buf[3] - '0') * 10000 +
+            (buf[4] - '0') * 1000 + (buf[5] - '0') * 100 +
+            (buf[6] - '0') * 10 + (buf[7] - '0');
     date_v1::Date d{n / 10000, (n / 100) % 100, n % 100};
     benchmark::DoNotOptimize(d);
   }
@@ -188,8 +218,10 @@ static void BM_Deserialize_V2(benchmark::State &state) {
   const char *buf = "20260309";
   for (auto _ : state) {
     benchmark::DoNotOptimize(buf);
-    int n;
-    std::sscanf(buf, "%8d", &n);
+    int n = (buf[0] - '0') * 10000000 + (buf[1] - '0') * 1000000 +
+            (buf[2] - '0') * 100000 + (buf[3] - '0') * 10000 +
+            (buf[4] - '0') * 1000 + (buf[5] - '0') * 100 +
+            (buf[6] - '0') * 10 + (buf[7] - '0');
     date_v2::Date d{static_cast<short>(n / 10000),
                     static_cast<char>((n / 100) % 100),
                     static_cast<char>(n % 100)};
@@ -202,8 +234,10 @@ static void BM_Deserialize_V3(benchmark::State &state) {
   const char *buf = "20260309";
   for (auto _ : state) {
     benchmark::DoNotOptimize(buf);
-    date_v3::Date d;
-    std::sscanf(buf, "%8d", &d);
+    date_v3::Date d = (buf[0] - '0') * 10000000 + (buf[1] - '0') * 1000000 +
+                      (buf[2] - '0') * 100000 + (buf[3] - '0') * 10000 +
+                      (buf[4] - '0') * 1000 + (buf[5] - '0') * 100 +
+                      (buf[6] - '0') * 10 + (buf[7] - '0');
     benchmark::DoNotOptimize(d);
   }
 }
