@@ -31,15 +31,35 @@ constexpr int nextDay(int date) {
 }
 
 constexpr int getNextWeekday(int date) {
-  const int next = nextDay(date);
-  const date_common_functions::DayOfWeek dow = dayOfWeek(next);
-  if (dow == date_common_functions::DayOfWeek::Sunday) {
-    return nextDay(next);
+  // Unpack once — all arithmetic stays at component level.
+  int y = year(date);
+  int m = month(date);
+  int d = day(date);
+
+  // Days to advance based on today's DOW:
+  //   Sun–Thu → 1  (next day is Mon–Fri, a weekday)
+  //   Fri     → 3  (skip Sat+Sun, land on Mon)
+  //   Sat     → 2  (skip Sun, land on Mon)
+  // Lookup avoids branching on the common Mon–Thu path.
+  constexpr int kAdvance[7] = {1, 1, 1, 1, 1, 3, 2}; // Sun=0 … Sat=6
+  const int advance =
+      kAdvance[static_cast<int>(date_common_functions::dayOfWeek(y, m, d))];
+
+  // Advance `advance` days without repacking or re-unpacking.
+  for (int i = 0; i < advance; ++i) {
+    if (d < date_common_functions::daysInMonth(y, m)) {
+      ++d;
+    } else if (m < 12) {
+      ++m;
+      d = 1;
+    } else {
+      ++y;
+      m = 1;
+      d = 1;
+    }
   }
-  if (dow == date_common_functions::DayOfWeek::Saturday) {
-    return nextDay(nextDay(next));
-  }
-  return next;
+
+  return pack(y, m, d);
 }
 
 } // namespace date_helper
