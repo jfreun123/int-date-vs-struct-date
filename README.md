@@ -10,7 +10,7 @@ Benchmarking three representations of a calendar date in C++23:
 
 ## Results
 
-Machine: Apple M-series, 8 cores, 1400 MHz, clang++ with `-O3 -march=native -funroll-loops -flto=thin`
+Machine: Apple M-series, 8 cores, 1400 MHz, clang++ with `-O3 -march=native -funroll-loops`
 
 ```
 Benchmark                     Time             CPU   Iterations
