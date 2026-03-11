@@ -99,7 +99,7 @@ static void BM_Sort_V1(benchmark::State &state) {
   const auto shuffled = makeShuffledV1();
   for (auto _ : state) {
     auto copy = shuffled;
-    std::sort(copy.begin(), copy.end());
+    std::ranges::sort(copy);
     benchmark::DoNotOptimize(copy);
   }
 }
@@ -109,7 +109,7 @@ static void BM_Sort_V2(benchmark::State &state) {
   const auto shuffled = makeShuffledV2();
   for (auto _ : state) {
     auto copy = shuffled;
-    std::sort(copy.begin(), copy.end());
+    std::ranges::sort(copy);
     benchmark::DoNotOptimize(copy);
   }
 }
@@ -119,7 +119,7 @@ static void BM_Sort_V3(benchmark::State &state) {
   const auto shuffled = makeShuffledV3();
   for (auto _ : state) {
     auto copy = shuffled;
-    std::sort(copy.begin(), copy.end());
+    std::ranges::sort(copy);
     benchmark::DoNotOptimize(copy);
   }
 }
@@ -139,7 +139,7 @@ static void BM_Serialize_V1(benchmark::State &state) {
   std::array<std::byte, sizeof(int)> buf;
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
-    int wire = d.year * 10000 + d.month * 100 + d.day;
+    int wire = (d.year * 10000) + (d.month * 100) + d.day;
     std::memcpy(buf.data(), &wire, sizeof(wire));
     benchmark::DoNotOptimize(buf);
   }
@@ -151,7 +151,7 @@ static void BM_Serialize_V2(benchmark::State &state) {
   std::array<std::byte, sizeof(int)> buf;
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
-    int wire = d.year * 10000 + d.month * 100 + d.day;
+    int wire = (d.year * 10000) + (d.month * 100) + d.day;
     std::memcpy(buf.data(), &wire, sizeof(wire));
     benchmark::DoNotOptimize(buf);
   }
@@ -221,17 +221,17 @@ BENCHMARK(BM_Deserialize_V3);
 
 static void BM_Serialize_V3_CharPtr(benchmark::State &state) {
   date_v3::Date d = 20260309;
-  char buf[9];
+  std::array<char, 9> buf{};
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
-    std::snprintf(buf, sizeof(buf), "%d", d);
+    std::snprintf(buf.data(), buf.size(), "%d", d);
     benchmark::DoNotOptimize(buf);
   }
 }
 BENCHMARK(BM_Serialize_V3_CharPtr);
 
 static void BM_Deserialize_V3_CharPtr(benchmark::State &state) {
-  char buf[9] = "20260309";
+  const char *buf = "20260309";
   for (auto _ : state) {
     benchmark::DoNotOptimize(buf);
     date_v3::Date d = std::atoi(buf);

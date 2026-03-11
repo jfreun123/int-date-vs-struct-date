@@ -8,7 +8,7 @@ constexpr int year(int date) { return date / 10000; }
 constexpr int month(int date) { return (date / 100) % 100; }
 constexpr int day(int date) { return date % 100; }
 
-constexpr int pack(int y, int m, int d) { return y * 10000 + m * 100 + d; }
+constexpr int pack(int y, int m, int d) { return (y * 10000) + (m * 100) + d; }
 
 constexpr date_common_functions::DayOfWeek dayOfWeek(int date) {
   return date_common_functions::dayOfWeek(year(date), month(date), day(date));
@@ -34,7 +34,7 @@ constexpr int getNextWeekday(int date) {
   int d = day(date);
 
   // Sun–Thu → 1, Fri → 3 (skip Sat+Sun), Sat → 2 (skip Sun)
-  constexpr int kAdvance[7] = {1, 1, 1, 1, 1, 3, 2}; // Sun=0 … Sat=6
+  constexpr std::array<int, 7> kAdvance = {1, 1, 1, 1, 1, 3, 2}; // Sun=0 … Sat=6
   const int advance =
       kAdvance[static_cast<int>(date_common_functions::dayOfWeek(y, m, d))];
 

@@ -1,10 +1,11 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 
 namespace date_common_functions {
 
-enum class DayOfWeek {
+enum class DayOfWeek : std::uint8_t {
   Sunday = 0,
   Monday,
   Tuesday,
@@ -44,7 +45,7 @@ constexpr DayOfWeek dayOfWeek(int y, int m, int d) {
 
   const int marchMonth =
       (m + 9) % 12; // Mar=0, Apr=1, ..., Dec=9, Jan=10, Feb=11
-  const int leapYearAdjustment = y / 4 - y / 100 + y / 400;
+  const int leapYearAdjustment = (y / 4) - (y / 100) + (y / 400);
 
   // Shortcut: 365*y ≡ y (mod 7) because 365 = 52*7 + 1, so one full year
   // always shifts the day of week forward by exactly 1. We substitute y for

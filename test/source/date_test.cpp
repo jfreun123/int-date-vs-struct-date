@@ -1,4 +1,3 @@
-// date headers
 #include "date_common_functions.hpp"
 #include "date_helper.hpp"
 #include "date_v1.hpp"
@@ -6,11 +5,12 @@
 #include "date_v3.hpp"
 #include "legacy_date_helper.hpp"
 
-// gtest
 #include <gtest/gtest.h>
 
-// std
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <vector>
 
 using date_common_functions::DayOfWeek;
@@ -233,9 +233,56 @@ TEST(DateHelper, GetNextWeekday_SundaySkipsToMonday) {
   EXPECT_EQ(date_helper::getNextWeekday(20260104), 20260105); // Sun -> Mon
 }
 
+TEST(DateHelper, GetNextWeekday_ThursdayToFriday) {
+  EXPECT_EQ(date_helper::getNextWeekday(20260101), 20260102); // Thu -> Fri
+  EXPECT_EQ(date_helper::dayOfWeek(20260102), DayOfWeek::Friday);
+}
+
 TEST(DateHelper, GetNextWeekday_YearRollover) {
   EXPECT_EQ(date_helper::getNextWeekday(20261231), 20270101); // Thu -> Fri
   EXPECT_EQ(date_helper::dayOfWeek(20270101), DayOfWeek::Friday);
+}
+
+// ---- binary serialization round-trips ----
+
+TEST(Serialize_V1, RoundTrip) {
+  date_v1::Date src{2026, 3, 9};
+  int wire = (src.year * 10000) + (src.month * 100) + src.day;
+  EXPECT_EQ(wire, 20260309);
+  date_v1::Date dst{wire / 10000, (wire / 100) % 100, wire % 100};
+  EXPECT_EQ(dst.year, src.year);
+  EXPECT_EQ(dst.month, src.month);
+  EXPECT_EQ(dst.day, src.day);
+}
+
+TEST(Serialize_V2, RoundTrip) {
+  date_v2::Date src{2026, 3, 9};
+  int wire = (src.year * 10000) + (src.month * 100) + src.day;
+  EXPECT_EQ(wire, 20260309);
+  date_v2::Date dst{static_cast<short>(wire / 10000),
+                    static_cast<char>((wire / 100) % 100),
+                    static_cast<char>(wire % 100)};
+  EXPECT_EQ(dst.year, src.year);
+  EXPECT_EQ(dst.month, src.month);
+  EXPECT_EQ(dst.day, src.day);
+}
+
+TEST(Serialize_V3, RoundTrip) {
+  date_v3::Date src = 20260309;
+  int wire = 0;
+  std::memcpy(&wire, &src, sizeof(src));
+  date_v3::Date dst = 0;
+  std::memcpy(&dst, &wire, sizeof(wire));
+  EXPECT_EQ(dst, src);
+}
+
+TEST(Serialize_V3_CharPtr, RoundTrip) {
+  date_v3::Date src = 20260309;
+  std::array<char, 9> buf{};
+  std::snprintf(buf.data(), buf.size(), "%d", src);
+  EXPECT_STREQ(buf.data(), "20260309");
+  date_v3::Date dst = std::atoi(buf.data());
+  EXPECT_EQ(dst, src);
 }
 
 // ---- sort order ----
@@ -244,7 +291,7 @@ TEST(SortOrder_V1, ShuffledDates) {
   std::vector<date_v1::Date> dates = {
       {2026, 3, 9}, {2026, 1, 1}, {2025, 12, 31}, {2026, 3, 8}, {2026, 1, 31},
   };
-  std::sort(dates.begin(), dates.end());
+  std::ranges::sort(dates);
   EXPECT_EQ((dates[0]), (date_v1::Date{2025, 12, 31}));
   EXPECT_EQ((dates[1]), (date_v1::Date{2026, 1, 1}));
   EXPECT_EQ((dates[2]), (date_v1::Date{2026, 1, 31}));
@@ -256,7 +303,7 @@ TEST(SortOrder_V2, ShuffledDates) {
   std::vector<date_v2::Date> dates = {
       {2026, 3, 9}, {2026, 1, 1}, {2025, 12, 31}, {2026, 3, 8}, {2026, 1, 31},
   };
-  std::sort(dates.begin(), dates.end());
+  std::ranges::sort(dates);
   EXPECT_EQ((dates[0]), (date_v2::Date{2025, 12, 31}));
   EXPECT_EQ((dates[1]), (date_v2::Date{2026, 1, 1}));
   EXPECT_EQ((dates[2]), (date_v2::Date{2026, 1, 31}));
@@ -268,7 +315,7 @@ TEST(SortOrder_V3, ShuffledDates) {
   std::vector<date_v3::Date> dates = {
       20260309, 20260101, 20251231, 20260308, 20260131,
   };
-  std::sort(dates.begin(), dates.end());
+  std::ranges::sort(dates);
   EXPECT_EQ(dates[0], 20251231);
   EXPECT_EQ(dates[1], 20260101);
   EXPECT_EQ(dates[2], 20260131);

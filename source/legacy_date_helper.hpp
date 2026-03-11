@@ -22,7 +22,7 @@ template <typename Date> constexpr Date nextDay(Date date) {
 
 template <typename Date> constexpr Date getNextWeekday(Date date) {
   // Sun–Thu → 1, Fri → 3 (skip Sat+Sun), Sat → 2 (skip Sun)
-  constexpr int kAdvance[7] = {1, 1, 1, 1, 1, 3, 2}; // Sun=0 … Sat=6
+  constexpr std::array<int, 7> kAdvance = {1, 1, 1, 1, 1, 3, 2}; // Sun=0 … Sat=6
   const int advance = kAdvance[static_cast<int>(
       date_common_functions::dayOfWeek(date.year, date.month, date.day))];
 
