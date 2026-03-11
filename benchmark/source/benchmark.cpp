@@ -10,6 +10,10 @@
 
 // std
 #include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdio>
+#include <cstring>
 #include <random>
 #include <vector>
 
@@ -125,37 +129,22 @@ static void BM_Sort_V3(benchmark::State &state) {
 }
 BENCHMARK(BM_Sort_V3);
 
-// ---- serialization benchmarks ----
-// Text serialization to/from "YYYYMMDD" (8 chars + null) — the dominant
-// wire format in FIX, CSV, and settlement systems.
+// ---- binary serialization benchmarks ----
+// Wire format: a single 32-bit int in yyyymmdd encoding — the standard
+// representation used by binary protocols (FIX Binary, Cap'n Proto, flat
+// memory-mapped files, network buffers).
 //
-// Serialize: date → char[9]
-// Deserialize: char[9] → date
-//
-// Serialize: V1/V2 win — fields are already split, so digit extraction
-// requires no decomposition (symmetric advantage to getNextWeekday).
-// V3 must first unpack year/month/day from the packed int, paying extra
-// div/mod operations before it can write any digits.
-//
-// Deserialize: V3 wins — parse the 8-char string into one integer and
-// it is immediately a valid V3 date. V1/V2 must then decompose that
-// integer into three fields, paying the same penalty seen in
-// BM_GetNextWeekday_V3.
+// V3 IS the wire int: serialize = one store, deserialize = one load.
+// V1/V2 must pack fields into the int on serialize and unpack on deserialize,
+// paying arithmetic that V3 avoids entirely.
 
 static void BM_Serialize_V1(benchmark::State &state) {
   date_v1::Date d{2026, 3, 9};
-  char buf[9];
+  std::array<std::byte, sizeof(int)> buf;
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
-    buf[0] = '0' + d.year / 1000;
-    buf[1] = '0' + (d.year / 100) % 10;
-    buf[2] = '0' + (d.year / 10) % 10;
-    buf[3] = '0' + d.year % 10;
-    buf[4] = '0' + d.month / 10;
-    buf[5] = '0' + d.month % 10;
-    buf[6] = '0' + d.day / 10;
-    buf[7] = '0' + d.day % 10;
-    buf[8] = '\0';
+    int wire = d.year * 10000 + d.month * 100 + d.day;
+    std::memcpy(buf.data(), &wire, sizeof(wire));
     benchmark::DoNotOptimize(buf);
   }
 }
@@ -163,18 +152,11 @@ BENCHMARK(BM_Serialize_V1);
 
 static void BM_Serialize_V2(benchmark::State &state) {
   date_v2::Date d{2026, 3, 9};
-  char buf[9];
+  std::array<std::byte, sizeof(int)> buf;
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
-    buf[0] = '0' + d.year / 1000;
-    buf[1] = '0' + (d.year / 100) % 10;
-    buf[2] = '0' + (d.year / 10) % 10;
-    buf[3] = '0' + d.year % 10;
-    buf[4] = '0' + d.month / 10;
-    buf[5] = '0' + d.month % 10;
-    buf[6] = '0' + d.day / 10;
-    buf[7] = '0' + d.day % 10;
-    buf[8] = '\0';
+    int wire = d.year * 10000 + d.month * 100 + d.day;
+    std::memcpy(buf.data(), &wire, sizeof(wire));
     benchmark::DoNotOptimize(buf);
   }
 }
@@ -182,65 +164,84 @@ BENCHMARK(BM_Serialize_V2);
 
 static void BM_Serialize_V3(benchmark::State &state) {
   date_v3::Date d = 20260309;
-  char buf[9];
+  std::array<std::byte, sizeof(int)> buf;
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
-    int tmp = d;
-    buf[7] = '0' + tmp % 10; tmp /= 10;
-    buf[6] = '0' + tmp % 10; tmp /= 10;
-    buf[5] = '0' + tmp % 10; tmp /= 10;
-    buf[4] = '0' + tmp % 10; tmp /= 10;
-    buf[3] = '0' + tmp % 10; tmp /= 10;
-    buf[2] = '0' + tmp % 10; tmp /= 10;
-    buf[1] = '0' + tmp % 10; tmp /= 10;
-    buf[0] = '0' + tmp % 10;
-    buf[8] = '\0';
+    std::memcpy(buf.data(), &d, sizeof(d));
     benchmark::DoNotOptimize(buf);
   }
 }
 BENCHMARK(BM_Serialize_V3);
 
 static void BM_Deserialize_V1(benchmark::State &state) {
-  const char *buf = "20260309";
+  int wire = 20260309;
+  std::array<std::byte, sizeof(wire)> buf;
+  std::memcpy(buf.data(), &wire, sizeof(wire));
   for (auto _ : state) {
     benchmark::DoNotOptimize(buf);
-    int n = (buf[0] - '0') * 10000000 + (buf[1] - '0') * 1000000 +
-            (buf[2] - '0') * 100000 + (buf[3] - '0') * 10000 +
-            (buf[4] - '0') * 1000 + (buf[5] - '0') * 100 +
-            (buf[6] - '0') * 10 + (buf[7] - '0');
-    date_v1::Date d{n / 10000, (n / 100) % 100, n % 100};
+    int w;
+    std::memcpy(&w, buf.data(), sizeof(w));
+    date_v1::Date d{w / 10000, (w / 100) % 100, w % 100};
     benchmark::DoNotOptimize(d);
   }
 }
 BENCHMARK(BM_Deserialize_V1);
 
 static void BM_Deserialize_V2(benchmark::State &state) {
-  const char *buf = "20260309";
+  int wire = 20260309;
+  std::array<std::byte, sizeof(wire)> buf;
+  std::memcpy(buf.data(), &wire, sizeof(wire));
   for (auto _ : state) {
     benchmark::DoNotOptimize(buf);
-    int n = (buf[0] - '0') * 10000000 + (buf[1] - '0') * 1000000 +
-            (buf[2] - '0') * 100000 + (buf[3] - '0') * 10000 +
-            (buf[4] - '0') * 1000 + (buf[5] - '0') * 100 +
-            (buf[6] - '0') * 10 + (buf[7] - '0');
-    date_v2::Date d{static_cast<short>(n / 10000),
-                    static_cast<char>((n / 100) % 100),
-                    static_cast<char>(n % 100)};
+    int w;
+    std::memcpy(&w, buf.data(), sizeof(w));
+    date_v2::Date d{static_cast<short>(w / 10000),
+                    static_cast<char>((w / 100) % 100),
+                    static_cast<char>(w % 100)};
     benchmark::DoNotOptimize(d);
   }
 }
 BENCHMARK(BM_Deserialize_V2);
 
 static void BM_Deserialize_V3(benchmark::State &state) {
-  const char *buf = "20260309";
+  int wire = 20260309;
+  std::array<std::byte, sizeof(wire)> buf;
+  std::memcpy(buf.data(), &wire, sizeof(wire));
   for (auto _ : state) {
     benchmark::DoNotOptimize(buf);
-    date_v3::Date d = (buf[0] - '0') * 10000000 + (buf[1] - '0') * 1000000 +
-                      (buf[2] - '0') * 100000 + (buf[3] - '0') * 10000 +
-                      (buf[4] - '0') * 1000 + (buf[5] - '0') * 100 +
-                      (buf[6] - '0') * 10 + (buf[7] - '0');
+    date_v3::Date d;
+    std::memcpy(&d, buf.data(), sizeof(d));
     benchmark::DoNotOptimize(d);
   }
 }
 BENCHMARK(BM_Deserialize_V3);
+
+// ---- legacy char* serialization (V3 only) ----
+// Some older systems serialize dates as their decimal text representation
+// ("20260309") into a char buffer, then parse with sscanf/atoi on read.
+// This is a common "it's just a string" shortcut that pays formatting and
+// parsing overhead on every I/O call — contrasted with the binary int path
+// above which is a single 4-byte store/load with zero arithmetic.
+
+static void BM_Serialize_V3_CharPtr(benchmark::State &state) {
+  date_v3::Date d = 20260309;
+  char buf[9]; // "20260309\0"
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(d);
+    std::snprintf(buf, sizeof(buf), "%d", d);
+    benchmark::DoNotOptimize(buf);
+  }
+}
+BENCHMARK(BM_Serialize_V3_CharPtr);
+
+static void BM_Deserialize_V3_CharPtr(benchmark::State &state) {
+  char buf[9] = "20260309";
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(buf);
+    date_v3::Date d = std::atoi(buf);
+    benchmark::DoNotOptimize(d);
+  }
+}
+BENCHMARK(BM_Deserialize_V3_CharPtr);
 
 BENCHMARK_MAIN();

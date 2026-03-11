@@ -35,12 +35,10 @@ BM_Deserialize_V3           1.89 ns         1.88 ns    367245866
 |---|---|---|---|
 | `getNextWeekday` | V1 struct | 1.3× faster than V3 | V3 pays div/mod to unpack; V1 accesses fields directly |
 | Sort (~2200 dates) | V3 int | 2.6× faster than V1/V2 | Single integer compare; 3× smaller element (4 vs 12 bytes) |
-| Serialize to `"YYYYMMDD"` | V1/V2 struct | 1.6× faster than V3 | Fields already split — digit extraction needs no decomposition |
-| Deserialize from `"YYYYMMDD"` | V3 int | 2.3× faster than V1/V2 | Parsed integer is immediately a valid V3 date; V1/V2 must then split it |
+| Binary serialize | V3 int | fastest | V3 IS the wire int — one store; V1/V2 pay pack arithmetic |
+| Binary deserialize | V3 int | fastest | V3 IS the wire int — one load; V1/V2 pay unpack arithmetic |
 
-The tradeoffs are symmetric: **operations that start with a pre-split date** (serialize, `getNextWeekday`) favour V1/V2; **operations that start with external data** (deserialize, sort/compare) favour V3.
-
-**Why finance uses int dates:** the hot path is dominated by sort, compare, and deserialize from wire (FIX, CSV) — all V3 wins. Calendar arithmetic (`getNextWeekday`, `nextDay`) is computed once at startup into a holiday calendar lookup table, so its overhead is amortised away.
+**Why finance uses int dates:** the hot path is sort, compare, and binary I/O — all V3 wins or ties V2. Calendar arithmetic (`getNextWeekday`, `nextDay`) is computed once at startup into a holiday calendar lookup table, so its overhead is amortised away.
 
 ## Building
 
