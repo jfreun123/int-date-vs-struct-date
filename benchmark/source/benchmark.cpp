@@ -1,14 +1,11 @@
-// date headers
 #include "date_helper.hpp"
 #include "date_v1.hpp"
 #include "date_v2.hpp"
 #include "date_v3.hpp"
 #include "legacy_date_helper.hpp"
 
-// benchmark
 #include <benchmark/benchmark.h>
 
-// std
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -67,7 +64,6 @@ static std::vector<date_v1::Date> makeShuffledV1() {
     dates.push_back(d);
     d = legacy_date_helper::nextDay(d);
   }
-  // deterministic shuffle
   std::mt19937 rng(42);
   std::shuffle(dates.begin(), dates.end(), rng);
   return dates;
@@ -225,7 +221,7 @@ BENCHMARK(BM_Deserialize_V3);
 
 static void BM_Serialize_V3_CharPtr(benchmark::State &state) {
   date_v3::Date d = 20260309;
-  char buf[9]; // "20260309\0"
+  char buf[9];
   for (auto _ : state) {
     benchmark::DoNotOptimize(d);
     std::snprintf(buf, sizeof(buf), "%d", d);

@@ -56,7 +56,6 @@ constexpr DayOfWeek dayOfWeek(int y, int m, int d) {
   return static_cast<DayOfWeek>((mod7Token + 3) % 7);
 }
 
-// Gregorian leap year rules: every 4y, skip 100y, restore 400y.
 constexpr bool isLeapYear(int year) {
   return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
 }
